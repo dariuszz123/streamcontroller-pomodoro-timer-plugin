@@ -1,0 +1,9 @@
+{
+    "generic": {
+        "copyright": "Copyright (c) 2024 dariuszz123",
+        "original-url": "https://github.com/dariuszz123/streamcontroller-pomodoro-timer-plugin",
+        "license": "MIT",
+        "license-url": "https://opensource.org/licenses/MIT",
+        "description": "Pomodoro Timer Plugin for StreamController"
+    }
+}

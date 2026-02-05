@@ -3,6 +3,7 @@
     "thumbnail": "store/thumbnail.png",
     "id": "com_cuflt_pomodoro",
     "name": "Pomodoro Timer",
+    "author": "dariuszz123",
     "github": "https://github.com/dariuszz123/streamcontroller-pomodoro-timer-plugin",
     "minimum-app-version": "1.5.0-beta.5",
     "app-version": "1.5.0-beta.6",
