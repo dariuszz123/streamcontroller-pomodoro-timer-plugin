@@ -6,7 +6,7 @@ A simple Pomodoro timer plugin for [StreamController](https://github.com/StreamC
 
 ## Features
 
-- Configurable timer duration (1-120 minutes, default 25)
+- Configurable timer duration
 - Visual blinking effect when timer completes
 - Customizable blink colors (including transparent)
 - Option to disable blinking
