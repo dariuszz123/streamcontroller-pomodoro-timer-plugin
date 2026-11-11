@@ -2,6 +2,7 @@
 from enum import Enum
 import time
 import os
+import subprocess
 from src.backend.DeckManagement.InputIdentifier import Input, InputEvent
 from src.backend.PluginManager.ActionBase import ActionBase
 
@@ -34,6 +35,8 @@ class Pomodoro(ActionBase):
         self.blink_enabled = True
         self.color1 = [255, 0, 0, 255]  # Red
         self.color2 = [0, 0, 255, 255]  # Blue
+        self.sound_enabled = False
+        self.sound_path = ""
 
     def on_ready(self) -> None:
         """Called when the action is ready to be displayed."""
@@ -45,6 +48,8 @@ class Pomodoro(ActionBase):
         self.blink_enabled = settings.get("blink_enabled", True)
         self.color1 = settings.get("color1", [255, 0, 0, 255])
         self.color2 = settings.get("color2", [0, 0, 255, 255])
+        self.sound_enabled = settings.get("sound_enabled", False)
+        self.sound_path = settings.get("sound_path", "")
         self._update_display()
 
     def on_tick(self) -> None:
@@ -145,6 +150,7 @@ class Pomodoro(ActionBase):
         self._timer_state = State.FINISHED_BLINKING
         self.blink_on = True
         self._update_display()
+        self._play_finish_sound()
 
         if self.blink_enabled:
             # Start blinking timer (500ms interval)
@@ -160,6 +166,22 @@ class Pomodoro(ActionBase):
                 self.set_background_color(color=self.color1)
             except AttributeError:
                 pass
+
+    def _play_finish_sound(self) -> None:
+        """Play the finish sound once, without blocking the deck."""
+        if not self.sound_enabled or not self.sound_path:
+            return
+        sound_path = os.path.expanduser(self.sound_path)
+        if not os.path.isfile(sound_path):
+            return
+        # gst-play-1.0 plays WAV, OGG, MP3 and FLAC. paplay is the fallback (no MP3).
+        for player in (["gst-play-1.0", "--no-interactive", "-q"], ["paplay"]):
+            try:
+                subprocess.Popen(player + [sound_path],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+            except OSError:
+                continue
 
     def _blink_callback(self) -> bool:
         """GLib timer callback for blinking effect."""
@@ -281,6 +303,20 @@ class Pomodoro(ActionBase):
         self.color2_row.set_subtitle("Secondary blink color")
         self.color2_row.add_suffix(self.color2_button)
 
+        # Sound enable switch
+        self.sound_switch = Adw.SwitchRow()
+        self.sound_switch.set_title("Play sound")
+        self.sound_switch.set_subtitle("Play a sound once when the timer finishes")
+
+        # Sound file path
+        self.sound_path_entry = Gtk.Entry()
+        self.sound_path_entry.set_valign(Gtk.Align.CENTER)
+        self.sound_path_entry.set_placeholder_text("~/sounds/bell.wav")
+        self.sound_path_row = Adw.ActionRow()
+        self.sound_path_row.set_title("Sound file")
+        self.sound_path_row.set_subtitle("Path to a sound file (WAV, OGG, MP3, FLAC)")
+        self.sound_path_row.add_suffix(self.sound_path_entry)
+
         self._load_config_values()
 
         # Connect signals
@@ -291,6 +327,8 @@ class Pomodoro(ActionBase):
         self.blink_switch.connect("notify::active", self._on_blink_toggled)
         self.color1_button.connect("color-set", self._on_color1_changed)
         self.color2_button.connect("color-set", self._on_color2_changed)
+        self.sound_switch.connect("notify::active", self._on_sound_toggled)
+        self.sound_path_entry.connect("changed", self._on_sound_path_changed)
 
         return [
             self.duration_t1_row,
@@ -299,7 +337,9 @@ class Pomodoro(ActionBase):
             self.label_t2_row,
             self.blink_switch,
             self.color1_row,
-            self.color2_row
+            self.color2_row,
+            self.sound_switch,
+            self.sound_path_row
         ]
 
     def _load_config_values(self) -> None:
@@ -310,6 +350,8 @@ class Pomodoro(ActionBase):
         self.label_t1_entry.set_text(settings.get("label_t1", "Focus"))
         self.label_t2_entry.set_text(settings.get("label_t2", "Rest"))
         self.blink_switch.set_active(settings.get("blink_enabled", True))
+        self.sound_switch.set_active(settings.get("sound_enabled", False))
+        self.sound_path_entry.set_text(settings.get("sound_path", ""))
 
         # Load colors
         color1 = settings.get("color1", [255, 0, 0, 255])
@@ -404,4 +446,18 @@ class Pomodoro(ActionBase):
         ]
         settings = self.get_settings()
         settings["color2"] = self.color2
+        self.set_settings(settings)
+
+    def _on_sound_toggled(self, *args) -> None:
+        """Handle sound enable toggle."""
+        settings = self.get_settings()
+        self.sound_enabled = self.sound_switch.get_active()
+        settings["sound_enabled"] = self.sound_enabled
+        self.set_settings(settings)
+
+    def _on_sound_path_changed(self, *args) -> None:
+        """Handle sound file path change."""
+        settings = self.get_settings()
+        self.sound_path = self.sound_path_entry.get_text()
+        settings["sound_path"] = self.sound_path
         self.set_settings(settings)
